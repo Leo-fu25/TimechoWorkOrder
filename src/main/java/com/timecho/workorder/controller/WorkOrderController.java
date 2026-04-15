@@ -14,7 +14,9 @@ import com.timecho.workorder.model.WorkOrderComment;
 import com.timecho.workorder.model.WorkOrderHistory;
 import com.timecho.workorder.service.WorkOrderService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,6 +49,28 @@ public class WorkOrderController {
     @GetMapping("/statistics")
     public ResponseEntity<Map<String, Object>> getStatistics() {
         return ResponseEntity.ok(workOrderService.getStatistics());
+    }
+
+    @GetMapping(value = "/export/csv", produces = "text/csv")
+    public ResponseEntity<String> exportCsv(@RequestParam(required = false) String keyword,
+                                            @RequestParam(required = false) Long requesterId,
+                                            @RequestParam(required = false) Long assigneeId,
+                                            @RequestParam(required = false) Long departmentId,
+                                            @RequestParam(required = false) Long statusId,
+                                            @RequestParam(required = false) Long priorityId,
+                                            @RequestParam(required = false) Long typeId,
+                                            @RequestParam(required = false) String source,
+                                            @RequestParam(required = false) String customerType,
+                                            @RequestParam(required = false) String productName,
+                                            @RequestParam(required = false) String tag,
+                                            @RequestParam(required = false) Boolean overdue) {
+        String csv = workOrderService.exportWorkOrdersCsv(
+            keyword, requesterId, assigneeId, departmentId, statusId, priorityId, typeId, source, customerType, productName, tag, overdue
+        );
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("text/csv; charset=UTF-8"));
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=workorders.csv");
+        return new ResponseEntity<>(csv, headers, HttpStatus.OK);
     }
 
     @GetMapping("/{id}")

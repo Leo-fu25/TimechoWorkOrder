@@ -14,4 +14,6 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long>, Jpa
     List<WorkOrder> findByDepartmentId(Long departmentId);
     List<WorkOrder> findByStatusId(Long statusId);
     List<WorkOrder> findByPriorityId(Long priorityId);
+
+    List<WorkOrder> findByCustomerEmailIgnoreCaseOrderByCreatedAtDesc(String customerEmail);
 }

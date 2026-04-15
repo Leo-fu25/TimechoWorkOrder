@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timecho 工单系统</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="app-shell">
+    <header class="app-header">
+        <div class="brand">
+            <span class="badge">Timecho WorkOrder</span>
+            <h1>工单工作台</h1>
+            <p>对标 PingCode 的多场景工单处理界面，按任务拆分，减少页面噪音。</p>
+        </div>
+        <div class="header-actions">
+            <button id="refreshButton" class="ghost" type="button">刷新数据</button>
+            <button id="exportCsvButton" class="ghost" type="button">导出 CSV</button>
+            <div class="status-line"><i></i><span id="systemStatus">正在连接...</span></div>
+        </div>
+    </header>
+
+    <section class="hero-stats">
+        <div class="hero-stat">
+            <span>总工单</span>
+            <strong id="heroTotal">-</strong>
+        </div>
+        <div class="hero-stat">
+            <span>处理中</span>
+            <strong id="heroProgress">-</strong>
+        </div>
+        <div class="hero-stat">
+            <span>超时</span>
+            <strong id="heroOverdue">-</strong>
+        </div>
+        <div class="hero-stat">
+            <span>当前记录</span>
+            <strong id="tableCount">0 条</strong>
+        </div>
+    </section>
+
+    <nav class="workspace-nav">
+        <button class="nav-tab active" data-tab="dashboard-tab" type="button">概览</button>
+        <button class="nav-tab" data-tab="operations-tab" type="button">工单处理</button>
+        <button class="nav-tab" data-tab="automation-tab" type="button">自动化配置</button>
+        <button class="nav-tab" data-tab="customer-tab" type="button">客户门户</button>
+        <button class="nav-tab" data-tab="feishu-tab" type="button">飞书集成</button>
+        <button class="nav-tab" data-tab="collaboration-tab" type="button">协同与通知</button>
+    </nav>
+
+    <main class="workspace">
+        <section id="dashboard-tab" class="workspace-tab active">
+            <div class="panel">
+                <div class="title-row">
+                    <div>
+                        <span class="eyebrow">概览</span>
+                        <h2>系统指标</h2>
+                    </div>
+                </div>
+                <div id="metricGrid" class="metric-grid"></div>
+            </div>
+            <div class="panel">
+                <div class="title-row">
+                    <div>
+                        <span class="eyebrow">工单池</span>
+                        <h2>最新工单</h2>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>标题</th>
+                            <th>类型</th>
+                            <th>优先级</th>
+                            <th>状态</th>
+                            <th>提交人</th>
+                            <th>指派人</th>
+                            <th>产品</th>
+                            <th>截止</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="workOrderTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="operations-tab" class="workspace-tab">
+            <div class="layout-two">
+                <div class="panel">
+                    <div class="title-row">
+                        <div>
+                            <span class="eyebrow">创建</span>
+                            <h2>新建工单</h2>
+                        </div>
+                    </div>
+                    <form id="createForm" class="form-grid">
+                        <label>标题<input name="title" required></label>
+                        <label>来源<input name="source" placeholder="Web / 邮件 / API"></label>
+                        <label class="full">描述<textarea name="description" rows="4" required></textarea></label>
+                        <label>提交人<select id="requesterId" name="requesterId" required></select></label>
+                        <label>指派人<select id="assigneeId" name="assigneeId"><option value="">未指派</option></select></label>
+                        <label>部门<select id="departmentId" name="departmentId" required></select></label>
+                        <label>类型<select id="typeId" name="typeId"></select></label>
+                        <label>状态<select id="statusId" name="statusId"></select></label>
+                        <label>优先级<select id="priorityId" name="priorityId"></select></label>
+                        <label>客户名称<input name="customerName"></label>
+                        <label>客户邮箱<input name="customerEmail"></label>
+                        <label>产品名称<input name="productName"></label>
+                        <label>客户类型<input name="customerType"></label>
+                        <label>影响范围<input name="impactScope"></label>
+                        <label>标签<input name="tags" placeholder="导出,报表"></label>
+                        <label>响应截止<input type="datetime-local" name="responseDueAt"></label>
+                        <label>解决截止<input type="datetime-local" name="dueAt"></label>
+                        <button class="primary full" type="submit">提交工单</button>
+                    </form>
+                </div>
+
+                <div class="panel">
+                    <div class="title-row">
+                        <div>
+                            <span class="eyebrow">查询</span>
+                            <h2>筛选与批处理</h2>
+                        </div>
+                    </div>
+                    <form id="filterForm" class="form-grid">
+                        <label>关键字<input name="keyword"></label>
+                        <label>状态<select id="filterStatusId" name="statusId"><option value="">全部</option></select></label>
+                        <label>优先级<select id="filterPriorityId" name="priorityId"><option value="">全部</option></select></label>
+                        <label>类型<select id="filterTypeId" name="typeId"><option value="">全部</option></select></label>
+                        <label>指派人<select id="filterAssigneeId" name="assigneeId"><option value="">全部</option></select></label>
+                        <label class="check-row"><input type="checkbox" name="overdue"><span>仅超时</span></label>
+                        <div class="buttons full">
+                            <button class="primary" type="submit">查询</button>
+                            <button class="ghost" id="resetFilterButton" type="button">重置</button>
+                        </div>
+                    </form>
+
+                    <div class="sub-panel">
+                        <h3>快速流转</h3>
+                        <form id="quickActionForm" class="form-grid">
+                            <label>工单 ID<input type="number" name="workOrderId" min="1" required></label>
+                            <label>新状态<select id="quickStatusId" name="statusId" required></select></label>
+                            <label>操作人<select id="quickOperatorId" name="operatorId" required></select></label>
+                            <label class="full">备注<input name="remark"></label>
+                            <button class="secondary full" type="submit">更新状态</button>
+                        </form>
+                    </div>
+
+                    <div class="sub-panel">
+                        <h3>快速指派</h3>
+                        <form id="assignForm" class="form-grid">
+                            <label>工单 ID<input type="number" name="workOrderId" min="1" required></label>
+                            <label>指派给<select id="assignAssigneeId" name="assigneeId" required></select></label>
+                            <label>操作人<select id="assignOperatorId" name="operatorId" required></select></label>
+                            <label class="full">备注<input name="remark"></label>
+                            <button class="secondary full" type="submit">提交指派</button>
+                        </form>
+                    </div>
+
+                    <div class="sub-panel">
+                        <h3>批量改状态</h3>
+                        <form id="batchStatusForm" class="form-grid">
+                            <label class="full">工单 ID 列表<input name="workOrderIds" placeholder="1,2,3" required></label>
+                            <label>目标状态<select id="batchStatusId" name="statusId" required></select></label>
+                            <label>操作人<select id="batchOperatorId" name="operatorId" required></select></label>
+                            <label class="full">备注<input name="remark"></label>
+                            <button class="secondary full" type="submit">批量更新</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="automation-tab" class="workspace-tab">
+            <div class="layout-two">
+                <div class="panel">
+                    <div class="title-row">
+                        <div>
+                            <span class="eyebrow">自动化</span>
+                            <h2>SLA 策略</h2>
+                        </div>
+                    </div>
+                    <form id="slaForm" class="form-grid">
+                        <label>策略名称<input name="name" required></label>
+                        <label>优先级<select id="slaPriorityId" name="priorityId"><option value="">全部优先级</option></select></label>
+                        <label>工单类型<select id="slaTypeId" name="typeId"><option value="">全部类型</option></select></label>
+                        <label>部门<select id="slaDepartmentId" name="departmentId"><option value="">全部部门</option></select></label>
+                        <label>响应时限(小时)<input type="number" min="1" name="responseHours" required></label>
+                        <label>解决时限(小时)<input type="number" min="1" name="resolveHours" required></label>
+                        <label>升级优先级<select id="slaEscalationPriorityId" name="escalationPriorityId"><option value="">不升级</option></select></label>
+                        <label class="check-row"><input type="checkbox" name="autoEscalate" checked><span>超时自动升级</span></label>
+                        <button class="primary full" type="submit">新增 SLA 策略</button>
+                    </form>
+                    <div id="slaList" class="list-box"></div>
+                </div>
+
+                <div class="panel">
+                    <div class="title-row">
+                        <div>
+                            <span class="eyebrow">自动化</span>
+                            <h2>分派规则</h2>
+                        </div>
+                    </div>
+                    <form id="ruleForm" class="form-grid">
+                        <label>规则名称<input name="name" required></label>
+                        <label>优先顺序<input type="number" min="1" name="priority" value="100" required></label>
+                        <label>来源<input name="source" placeholder="Web / 邮件 / API"></label>
+                        <label>客户类型<input name="customerType" placeholder="VIP / 企业"></label>
+                        <label>部门<select id="ruleDepartmentId" name="departmentId"><option value="">全部部门</option></select></label>
+                        <label>工单类型<select id="ruleTypeId" name="typeId"><option value="">全部类型</option></select></label>
+                        <label class="full">目标处理人<select id="ruleAssigneeId" name="targetAssigneeId" required></select></label>
+                        <button class="primary full" type="submit">新增分派规则</button>
+                    </form>
+                    <div id="ruleList" class="list-box"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="customer-tab" class="workspace-tab">
+            <div class="layout-two">
+                <div class="panel">
+                    <div class="title-row">
+                        <div>
+                            <span class="eyebrow">客户侧</span>
+                            <h2>客户门户查询</h2>
+                        </div>
+                    </div>
+                    <form id="portalSearchForm" class="form-grid">
+                        <label>客户邮箱<input name="customerEmail" required></label>
+                        <label>关键字<input name="keyword" placeholder="标题/描述"></label>
+                        <label>状态<select id="portalStatusId" name="statusId"><option value="">全部状态</option></select></label>
+                        <button class="ghost full" type="submit">查询客户工单</button>
+                    </form>
+                    <div id="portalWorkOrderList" class="list-box"></div>
+                </div>
+                <div class="panel">
+                    <div class="title-row">
+                        <div>
+                            <span class="eyebrow">客户侧</span>
+                            <h2>客户可见评论</h2>
+                        </div>
+                    </div>
+                    <div id="portalCommentPreview" class="detail-box empty">在左侧点击“查看客户可见评论”。</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="feishu-tab" class="workspace-tab">
+            <div class="layout-two">
+                <div class="panel">
+                    <div class="title-row">
+                        <div>
+                            <span class="eyebrow">集成</span>
+                            <h2>飞书 Webhook 配置</h2>
+                        </div>
+                    </div>
+                    <form id="feishuForm" class="form-grid">
+                        <label>配置名称<input name="name" required></label>
+                        <label>Webhook 地址<input name="webhookUrl" required placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..."></label>
+                        <label>签名密钥(可选)<input name="secret" placeholder="启用签名校验时填写"></label>
+                        <label class="check-row"><input type="checkbox" name="enabled" checked><span>启用</span></label>
+                        <label class="check-row"><input type="checkbox" name="notifyCreate" checked><span>创建事件</span></label>
+                        <label class="check-row"><input type="checkbox" name="notifyStatus" checked><span>状态变更事件</span></label>
+                        <label class="check-row"><input type="checkbox" name="notifyComment" checked><span>评论/附件事件</span></label>
+                        <label class="check-row"><input type="checkbox" name="notifyEvaluation" checked><span>评估事件</span></label>
+                        <label class="check-row"><input type="checkbox" name="notifySla" checked><span>SLA事件</span></label>
+                        <button class="primary full" type="submit">新增配置</button>
+                    </form>
+                    <div id="feishuWebhookList" class="list-box"></div>
+                </div>
+                <div class="panel">
+                    <div class="title-row">
+                        <div>
+                            <span class="eyebrow">集成</span>
+                            <h2>飞书推送日志</h2>
+                        </div>
+                        <button id="refreshFeishuLogButton" class="ghost" type="button">刷新日志</button>
+                    </div>
+                    <div id="feishuLogList" class="list-box"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="collaboration-tab" class="workspace-tab">
+            <div class="layout-two">
+                <div class="panel">
+                    <div class="title-row">
+                        <div>
+                            <span class="eyebrow">详情</span>
+                            <h2>工单时间线</h2>
+                        </div>
+                    </div>
+                    <form id="detailForm" class="detail-form">
+                        <input id="detailWorkOrderId" type="number" min="1" placeholder="输入工单 ID">
+                        <button class="ghost" type="submit">查看详情</button>
+                    </form>
+                    <div id="workOrderDetail" class="detail-box empty">输入工单 ID 后查看历史、评论和评估。</div>
+                </div>
+
+                <div class="panel">
+                    <div class="title-row">
+                        <div>
+                            <span class="eyebrow">协同</span>
+                            <h2>评论 / 附件 / 评估</h2>
+                        </div>
+                    </div>
+                    <div class="sub-panel no-line">
+                        <h3>新增评论</h3>
+                        <form id="commentForm" class="form-grid">
+                            <label>工单 ID<input id="commentWorkOrderId" type="number" name="workOrderId" min="1" required></label>
+                            <label>评论人<select id="commentUserId" name="userId" required></select></label>
+                            <label class="check-row"><input type="checkbox" name="internalOnly"><span>仅内部可见</span></label>
+                            <label class="full">评论内容<textarea name="content" rows="3" required></textarea></label>
+                            <button class="primary full" type="submit">提交评论</button>
+                        </form>
+                    </div>
+
+                    <div class="sub-panel">
+                        <h3>附件元数据</h3>
+                        <form id="attachmentForm" class="form-grid">
+                            <label>工单 ID<input id="attachmentWorkOrderId" type="number" name="workOrderId" min="1" required></label>
+                            <label>上传人<select id="attachmentUserId" name="uploadedById" required></select></label>
+                            <label>文件名<input name="fileName" required></label>
+                            <label>文件链接<input name="fileUrl" placeholder="http:// / minio://" required></label>
+                            <label>内容类型<input name="contentType" placeholder="application/pdf"></label>
+                            <label>大小(bytes)<input type="number" min="0" name="sizeBytes"></label>
+                            <button class="primary full" type="submit">登记附件</button>
+                        </form>
+                    </div>
+
+                    <div class="sub-panel">
+                        <h3>需求评估</h3>
+                        <form id="evaluationForm" class="form-grid">
+                            <label>工单 ID<input type="number" name="workOrderId" min="1" required></label>
+                            <label>评估人<select id="evaluatorId" name="evaluatorId" required></select></label>
+                            <label>需求价值<input type="number" name="requirementValue" min="1" max="5" value="3" required></label>
+                            <label>开发工作量<input type="number" name="developmentEffort" min="1" max="5" value="3" required></label>
+                            <label>客户权重<input type="number" name="customerWeight" min="1" max="5" value="3" required></label>
+                            <label>竞品影响<input type="number" name="competitorImpact" min="1" max="5" value="3" required></label>
+                            <label>影响范围<input type="number" name="impactScopeScore" min="1" max="5" value="3" required></label>
+                            <label class="full">备注<textarea name="comment" rows="2"></textarea></label>
+                            <button class="secondary full" type="submit">提交评估</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="title-row">
+                    <div>
+                        <span class="eyebrow">通知</span>
+                        <h2>通知中心</h2>
+                    </div>
+                </div>
+                <form id="notificationForm" class="form-grid">
+                    <label>通知接收人<select id="notificationUserId" name="userId" required></select></label>
+                    <div class="buttons">
+                        <button class="ghost" type="submit">加载通知</button>
+                        <button id="markAllReadButton" class="ghost" type="button">全部已读</button>
+                    </div>
+                </form>
+                <div id="notificationUnread" class="eyebrow">未读：0</div>
+                <div id="notificationList" class="list-box"></div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -90,6 +90,15 @@ public class WorkOrder {
 
     @Column
     private LocalDateTime closedAt;
+
+    @Column(nullable = false)
+    private boolean responseBreached;
+
+    @Column(nullable = false)
+    private boolean resolutionBreached;
+
+    @Column(nullable = false)
+    private boolean escalated;
     
     @PrePersist
     protected void onCreate() {

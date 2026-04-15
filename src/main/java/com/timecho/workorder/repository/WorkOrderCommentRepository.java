@@ -10,5 +10,7 @@ import java.util.List;
 public interface WorkOrderCommentRepository extends JpaRepository<WorkOrderComment, Long> {
     List<WorkOrderComment> findByWorkOrderIdOrderByCreatedAtAsc(Long workOrderId);
 
+    List<WorkOrderComment> findByWorkOrderIdAndInternalOnlyFalseOrderByCreatedAtAsc(Long workOrderId);
+
     void deleteByWorkOrderId(Long workOrderId);
 }
